@@ -3,3 +3,7 @@ build
 
 # Default target folder
 bin
+
+.vscode
+
+**/I*.lib
