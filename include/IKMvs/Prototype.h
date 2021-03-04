@@ -7,6 +7,6 @@ namespace KTKR::MVS
     {
         size_t x;
         size_t y;
-    }
+    };
 
 } // namespace KTKR::MVS

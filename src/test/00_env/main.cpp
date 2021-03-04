@@ -1,24 +1,59 @@
 ﻿#include <iostream>
 #include <IKMvs/ImageQueue.h>
+#include <IKMvs/SIFT/SIFTCore.h>
 #include <opencv2/opencv.hpp>
-
-using namespace cv;
-int main(int argc, char** argv )
+using cv::Mat;
+int main(int argc, char **argv)
 {
-    std::cout<<"Well you made it! \n";
+    std::cout << "Well you made it! \n";
     Mat image;
-    image = imread( "../asset/awesomeface.png", 1 );
-
-    if ( !image.data )
+    image = cv::imread("../asset/anime.jpg", 1);
+    cv::resize(image, image, cv::Size(800, 600));
+    if (!image.data)
     {
-        std::cout<<"No image data \n";
-        waitKey(0);
+        std::cout << "No image data \n";
+        cv::waitKey(0);
         return -1;
     }
-    namedWindow("GoodJob", WINDOW_AUTOSIZE );
-    imshow("GoodJob", image);
+    cv::namedWindow("GoodJob", cv::WINDOW_AUTOSIZE);
+    // imshow("GoodJob", image);
+    // cv::waitKey(0);
 
-    waitKey(0);
+    // SIFT
+    std::cout << "Detecting Key Points\n";
+    int kp_num{512};
+    std::vector<cv::KeyPoint> kps;
+    cv::Ptr<cv::SiftFeatureDetector> siftDetector = cv::SiftFeatureDetector::create();
+    siftDetector->detect(image, kps);
+
+    cv::drawKeypoints(image, kps, image);
+    cv::imshow("GoodJob", image);
+    std::cout << "KeyPoint count: " << kps.size() << "\n";
+    auto centroid = KTKR::MVS::SIFTCore::GetCentroid(kps);
+    std::cout << "Centroid point (x, y) = (" << centroid.x << ", " << centroid.y << ")\n";
+    cv::waitKey(0);
+
+    // SVD
+    auto A = KTKR::MVS::SIFTCore::GetMatrixA(kps, centroid);
+    // std::cout << cv::format(A, cv::Formatter::FMT_NUMPY) << std::endl;
+
+    Mat w, u, vt;
+    cv::SVD::compute(A, w, u, vt);
+    std::cout << "---W---\n";
+    std::cout << cv::format(w, cv::Formatter::FMT_NUMPY) << std::endl;
+    std::cout << "---VT---\n";
+    std::cout << cv::format(vt, cv::Formatter::FMT_NUMPY) << std::endl;
+
+    // PCA
+    cv::Point2f
+        pm1{centroid},
+        pm2{centroid + cv::Point2f(vt.at<float>(0, 0), vt.at<float>(0, 1))},
+        pm3{centroid + cv::Point2f(vt.at<float>(1, 0), vt.at<float>(1, 1))};
+    cv::circle(image, pm1, 5, cv::Scalar(255, 0, 0), -1);
+    cv::circle(image, pm2, 5, cv::Scalar(0, 255, 0), -1);
+    cv::circle(image, pm3, 5, cv::Scalar(0, 0, 255), -1);
+    cv::imshow("GoodJob", image);
+    cv::waitKey(0);
 
     return 0;
 }
