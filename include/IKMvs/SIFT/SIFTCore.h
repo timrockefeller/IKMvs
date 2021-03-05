@@ -10,8 +10,21 @@ namespace KTKR::MVS
     public:
         static const size_t GAUSSKERN = Config::SIFT_GAUSSKERN;
 
-        cv::Ptr<cv::SiftFeatureDetector> siftDetector;
+        // cv::Ptr<cv::SiftFeatureDetector> siftDetector;
+
         using KeyPoints = std::vector<cv::KeyPoint>;
+        static KeyPoints GetKeyPoints(cv::Mat &image, bool draw = false)
+        {
+            // if (!siftDetector)
+            //     siftDetector = cv::SiftFeatureDetector::create();
+            auto siftDetector = cv::SiftFeatureDetector::create();
+            KeyPoints kps;
+            siftDetector->detect(image, kps);
+            if (draw)
+                cv::drawKeypoints(image, kps, image);
+            return kps;
+        }
+
         static cv::Point2f GetCentroid(const KeyPoints kps) noexcept
         {
             cv::Point2f centroid_sum{0, 0};

@@ -7,8 +7,8 @@ int main(int argc, char **argv)
 {
     std::cout << "Well you made it! \n";
     Mat image;
-    image = cv::imread("../asset/anime.jpg", 1);
-    cv::resize(image, image, cv::Size(800, 600));
+    image = cv::imread("../asset/banana_1.JPG", 1);
+    cv::resize(image, image, cv::Size(1200, 800));
     if (!image.data)
     {
         std::cout << "No image data \n";
@@ -37,8 +37,8 @@ int main(int argc, char **argv)
     auto A = KTKR::MVS::SIFTCore::GetMatrixA(kps, centroid);
     // std::cout << cv::format(A, cv::Formatter::FMT_NUMPY) << std::endl;
 
-    Mat w, u, vt;
-    cv::SVD::compute(A, w, u, vt);
+    Mat w, u, vt, y;
+    cv::SVD::compute(A, w, u, vt,cv::SVD::FULL_UV);
     std::cout << "---W---\n";
     std::cout << cv::format(w, cv::Formatter::FMT_NUMPY) << std::endl;
     std::cout << "---VT---\n";
