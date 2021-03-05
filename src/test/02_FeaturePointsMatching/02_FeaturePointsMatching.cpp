@@ -57,31 +57,43 @@ int main()
     // //    cout << endl;
     //     waitKey(0);
 
-    Mat image01 = imread("../asset/airpods_01.JPG", 1);
-    Mat image02 = imread("../asset/airpods_02.JPG", 1);
+    Mat image01 = imread("../asset/banana_1.jpg", 1);
+    Mat image02 = imread("../asset/banana_2.jpg", 1);
 
     cv::namedWindow("first_match", cv::WINDOW_AUTOSIZE);
 
     cv::resize(image01, image01, cv::Size(1200, 800));
     cv::resize(image02, image02, cv::Size(1200, 800));
 
-
     //灰度图转换
     Mat image1, image2;
     cvtColor(image01, image1, cv::COLOR_RGB2GRAY);
     cvtColor(image02, image2, cv::COLOR_RGB2GRAY);
 
-    //提取特征点
-    Ptr<SURF> surfDetector = SURF::create(2000); // 海塞矩阵阈值，在这里调整精度，值越大点越少，越精准
+    int minHessian = 700;
     vector<KeyPoint> keyPoint1, keyPoint2;
-    surfDetector->detect(image1, keyPoint1);
-    surfDetector->detect(image2, keyPoint2);
-
-    //特征点描述，为下边的特征点匹配做准备
-    Ptr<DescriptorExtractor> SurfDescriptor = SURF::create();
     Mat imageDesc1, imageDesc2;
-    SurfDescriptor->compute(image1, keyPoint1, imageDesc1);
-    SurfDescriptor->compute(image2, keyPoint2, imageDesc2);
+
+    // {
+    //     // SURF
+    //     //提取特征点
+    //     Ptr<SURF> surfDetector = SURF::create();
+    //     surfDetector->detect(image1, keyPoint1);
+    //     surfDetector->detect(image2, keyPoint2);
+    //     //特征点描述，为下边的特征点匹配做准备
+    //     surfDetector->compute(image1, keyPoint1, imageDesc1);
+    //     surfDetector->compute(image2, keyPoint2, imageDesc2);
+    // }
+
+    {
+        // SIFT
+        auto siftDetector = SIFT::create(0);
+        siftDetector->detect(image1, keyPoint1);
+        siftDetector->detect(image2, keyPoint2);
+        //特征点描述，为下边的特征点匹配做准备
+        siftDetector->compute(image1, keyPoint1, imageDesc1);
+        siftDetector->compute(image2, keyPoint2, imageDesc2);
+    }
 
     FlannBasedMatcher matcher;
     vector<vector<DMatch>> matchePoints;
