@@ -4,6 +4,7 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
 using namespace cv;
 using namespace std;
 
@@ -11,8 +12,8 @@ using namespace cv::xfeatures2d;
 int main()
 {
 
-    //     Mat img1 = imread("../asset/banana_2.jpg");    //右图
-    //     Mat img2 = imread("../asset/banana_1.jpg");    //左图
+    //     Mat img1 = imread("../asset/sanae_01.jpg");    //右图
+    //     Mat img2 = imread("../asset/sanae_02.jpg");    //左图
 
     //     cv::resize(img1,img1,cv::Size(800,600));
     //     cv::resize(img2,img2,cv::Size(800,600));
@@ -57,18 +58,18 @@ int main()
     // //    cout << endl;
     //     waitKey(0);
 
-    Mat image01 = imread("../asset/banana_1.jpg", 1);
-    Mat image02 = imread("../asset/banana_2.jpg", 1);
+    Mat image01 = imread("../asset/sanae_01.jpg", cv::IMREAD_COLOR);
+    Mat image02 = imread("../asset/sanae_02.jpg", cv::IMREAD_COLOR);
 
     cv::namedWindow("first_match", cv::WINDOW_AUTOSIZE);
 
-    cv::resize(image01, image01, cv::Size(1200, 800));
-    cv::resize(image02, image02, cv::Size(1200, 800));
-
-    //灰度图转换
     Mat image1, image2;
-    cvtColor(image01, image1, cv::COLOR_RGB2GRAY);
-    cvtColor(image02, image2, cv::COLOR_RGB2GRAY);
+    cv::resize(image01, image1, cv::Size(1200, 800));
+    cv::resize(image02, image2, cv::Size(1200, 800));
+
+    // //灰度图转换
+    // cvtColor(image01, image1, cv::COLOR_RGB2GRAY);
+    // cvtColor(image02, image2, cv::COLOR_RGB2GRAY);
 
     int minHessian = 700;
     vector<KeyPoint> keyPoint1, keyPoint2;
@@ -86,38 +87,79 @@ int main()
     // }
 
     {
+
         // SIFT
         auto siftDetector = SIFT::create(0);
-        siftDetector->detect(image1, keyPoint1);
-        siftDetector->detect(image2, keyPoint2);
+        siftDetector->detect(image1,keyPoint1);
+        siftDetector->detect(image2,keyPoint2);
         //特征点描述，为下边的特征点匹配做准备
         siftDetector->compute(image1, keyPoint1, imageDesc1);
         siftDetector->compute(image2, keyPoint2, imageDesc2);
     }
 
-    FlannBasedMatcher matcher;
+    FlannBasedMatcher matcher; 
+    // BFMatcher matcher; 
     vector<vector<DMatch>> matchePoints;
     vector<DMatch> GoodMatchePoints;
 
-    vector<Mat> train_desc(1, imageDesc1);
+    vector<Mat> train_desc(1, imageDesc2);
     matcher.add(train_desc);
     matcher.train();
-
-    matcher.knnMatch(imageDesc2, matchePoints, 2);
+    matcher.knnMatch(imageDesc1,matchePoints,2);
     cout << "total match points: " << matchePoints.size() << endl;
 
-    // Lowe's algorithm,获取优秀匹配点
-    for (int i = 0; i < matchePoints.size(); i++)
+    // // Lowe's algorithm,获取优秀匹配点
+    // for (int i = 0; i < matchePoints.size(); i++)
+    // {
+    //     if (matchePoints[i][0].distance < 0.6 * matchePoints[i][1].distance)
+    //     {
+    //         GoodMatchePoints.push_back(matchePoints[i][0]);
+    //     }
+    // }
+
+    // RANSAC process
+
+    vector<KeyPoint> R_keypoint1, R_keypoint2;
+    for (size_t i = 0; i < matchePoints.size(); i++)
     {
-        if (matchePoints[i][0].distance < 0.6 * matchePoints[i][1].distance)
+        R_keypoint1.push_back(keyPoint1[matchePoints[i][0].queryIdx]);
+        R_keypoint2.push_back(keyPoint2[matchePoints[i][0].trainIdx]);
+    }
+    // 相对坐标
+    vector<Point2f> p1, p2;
+    for (size_t i = 0; i < matchePoints.size(); i++)
+    {
+        p1.push_back(R_keypoint1[i].pt);
+        p2.push_back(R_keypoint2[i].pt);
+    }
+
+    vector<uchar> RansacStatus;
+    Mat Fundamental = cv::findFundamentalMat(p1, p2, RansacStatus, cv::FM_RANSAC);
+
+    // create new arrays (code cleaning required)
+    vector<KeyPoint> RAW_keyPoint1, RAW_keyPoint2;
+
+    int _idx = 0;
+
+    for (size_t i = 0; i < matchePoints.size(); i++)
+    {
+        if (RansacStatus[i] != 0)
         {
+            RAW_keyPoint1.push_back(R_keypoint1[i]);
+            RAW_keyPoint2.push_back(R_keypoint2[i]);
+            matchePoints[i][0].queryIdx = _idx;
+            matchePoints[i][0].trainIdx = _idx;
             GoodMatchePoints.push_back(matchePoints[i][0]);
+            _idx++;
         }
     }
 
-    Mat first_match;
-    drawMatches(image02, keyPoint2, image01, keyPoint1, GoodMatchePoints, first_match);
-    imshow("first_match", first_match);
+    cout << "RANSAC filtered: " << GoodMatchePoints.size() << endl;
+
+    Mat img_RansacMatches;
+    drawMatches(image1, RAW_keyPoint1, image2, RAW_keyPoint2, GoodMatchePoints, img_RansacMatches);
+    imshow("RansacMatches", img_RansacMatches);
     waitKey();
+
     return 0;
 }
