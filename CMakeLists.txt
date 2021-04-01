@@ -17,6 +17,15 @@ find_package( OpenCV REQUIRED )
 if(NOT OpenCV_FOUND)
     message(FATAL_ERROR "Package [OpenCV] not found.")
 endif()
+#PCL
+message(STATUS "+ Fetching [PCL].")
+find_package(PCL 1.11 REQUIRED QUIET)
+if(NOT PCL_FOUND)
+    message(FATAL_ERROR "Package [PCL] not found.")
+endif()
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 IK_InitProject(${PROJECT_NAME})
 
