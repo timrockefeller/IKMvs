@@ -44,22 +44,76 @@ int main()
         p1.push_back(R_keypoint1[i].pt);
         p2.push_back(R_keypoint2[i].pt);
     }
+    vector<uchar> RansacStatus;
+    Mat Fundamental = cv::findFundamentalMat(p1, p2, RansacStatus, cv::FM_RANSAC);
+
+    // create new arrays (code cleaning required)
+    vector<KeyPoint> RAW_keyPoint1, RAW_keyPoint2;
+
+    size_t _idx = 0;
+    vector<Point2f> gp1, gp2;
+
+    for (size_t i = 0; i < matchePoints.size(); i++)
+    {
+        if (RansacStatus[i] != 0)
+        {
+            RAW_keyPoint1.push_back(R_keypoint1[i]);
+            RAW_keyPoint2.push_back(R_keypoint2[i]);
+            gp1.push_back(R_keypoint1[i].pt);
+            gp2.push_back(R_keypoint2[i].pt);
+            matchePoints[i][0].queryIdx = static_cast<int>(_idx);
+            matchePoints[i][0].trainIdx = static_cast<int>(_idx);
+            GoodMatchePoints.push_back(matchePoints[i][0]);
+            _idx++;
+        }
+    }
 
     // =================================================
 
     CalibrationManager::Get()->ReadCalibrationParameters("../asset/calibration/caliberation_result.txt");
     auto cameraMatrix = CalibrationManager::Get()->GetCameraMatrix();
-    auto essentialMat = cv::findEssentialMat(p1, p2, cameraMatrix);
-    auto fundamentalMat = cv::findFundamentalMat(p1, p2, cv::FM_8POINT);
-    auto homographyMat = cv::findHomography(p1, p2, cv::RANSAC, (3.0));
+    auto essentialMat = cv::findEssentialMat(gp1, gp2, cameraMatrix);
+    auto fundamentalMat = cv::findFundamentalMat(gp1, gp2, cv::FM_8POINT);
+    auto homographyMat = cv::findHomography(gp1, gp2, cv::RANSAC, (3.0));
 
-    Mat R, t;
-    cv::recoverPose(essentialMat, p1, p2, cameraMatrix, R, t);
+    Mat R, T;
+    cv::recoverPose(essentialMat, gp1, gp2, cameraMatrix, R, T);
 
     std::cout << R << endl;
-    std::cout << t << endl;
+    std::cout << T << endl;
 
     // =================================================
-    
+    auto length = T.at<double>(0) * T.at<double>(0) + T.at<double>(1) * T.at<double>(1) + T.at<double>(2) * T.at<double>(2);
+
+    Mat T1 = (cv::Mat_<double>(3, 4) << 1, 0, 0, 0,
+              0, 1, 0, 0,
+              0, 0, 1, 0);
+
+    Mat T2 = (cv::Mat_<double>(3, 4) << R.at<double>(0, 0), R.at<double>(0, 1), R.at<double>(0, 2), T.at<double>(0),
+              R.at<double>(1, 0), R.at<double>(1, 1), R.at<double>(1, 2), T.at<double>(1),
+              R.at<double>(2, 0), R.at<double>(2, 1), R.at<double>(2, 2), T.at<double>(2));
+
+    vector<Point2d> camPt1, camPt2;
+
+    for (auto match : GoodMatchePoints)
+    {
+        camPt1.push_back(pixel2cam(gp1[match.queryIdx], cameraMatrix));
+        camPt2.push_back(pixel2cam(gp2[match.trainIdx], cameraMatrix));
+    }
+
+    Mat pts_4d;
+
+    cv::triangulatePoints(T1, T2, camPt1, camPt2, pts_4d);
+
+    vector<Point3d> points;
+
+    for (int i = 0; i < pts_4d.cols; i++)
+    {
+        Mat x = pts_4d.col(i);
+        x /= x.at<double>(3);
+        points.emplace_back(x.at<double>(0), x.at<double>(1), x.at<double>(2));
+        std::cout << points.back() << endl;
+    }
+
     return 0;
 }

@@ -5,6 +5,14 @@
 #include <string>
 namespace KTKR::MVS
 {
+
+    cv::Point2d pixel2cam(const cv::Point2d &p, const cv::Mat &K)
+    {
+        return cv::Point2d(
+            (p.x - K.at<float>(0, 2)) / K.at<float>(0, 0),
+            (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1));
+    }
+
     class CalibrationManager : public KTKR::Singleton<CalibrationManager>
     {
     private:
