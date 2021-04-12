@@ -52,7 +52,6 @@ int main()
 
     size_t _idx = 0;
     vector<Point2f> gp1, gp2;
-
     for (size_t i = 0; i < matchePoints.size(); i++)
     {
         if (RansacStatus[i] != 0)
@@ -94,11 +93,12 @@ int main()
               R.at<double>(2, 0), R.at<double>(2, 1), R.at<double>(2, 2), T.at<double>(2));
 
     vector<Point2d> camPt1, camPt2;
-
+    vector<Vec3b> colors;
     for (auto match : GoodMatchePoints)
     {
         camPt1.push_back(pixel2cam(gp1[match.queryIdx], cameraMatrix));
         camPt2.push_back(pixel2cam(gp2[match.trainIdx], cameraMatrix));
+        colors.push_back(image1.at<Vec3b>(gp1[match.queryIdx]));
     }
 
     Mat pts_4d;
@@ -106,13 +106,16 @@ int main()
     cv::triangulatePoints(T1, T2, camPt1, camPt2, pts_4d);
 
     vector<Point3d> points;
-
+    std::ofstream fout("../asset/calibration/match_result.txt");
     for (int i = 0; i < pts_4d.cols; i++)
     {
         Mat x = pts_4d.col(i);
         x /= x.at<double>(3);
         points.emplace_back(x.at<double>(0), x.at<double>(1), x.at<double>(2));
         std::cout << points.back() << endl;
+        // color
+        fout << x.at<double>(0) << " " << x.at<double>(1) << " " << x.at<double>(2) << " "
+             << static_cast<int>(colors[i].val[2]) / 255.f << " " << static_cast<int>(colors[i].val[1]) / 255.f << " " << static_cast<int>(colors[i].val[0]) / 255.f << std::endl;
     }
 
     return 0;
