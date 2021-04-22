@@ -5,5 +5,4 @@ IK_AddTarget(
     LIB
         ${core}
         ${OpenCV_LIBS}
-        ${PCL_LIBRARIES}
 )
