@@ -8,7 +8,7 @@ project(${PROJECT_NAME} VERSION ${PROJECT_VERSION} LANGUAGES C CXX)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(IKInit)
 
-IK_AddPackage(IKit 0.0.3)
+IK_AddPackage(IKit 0.0.4)
 
 # OpenCV
 message(STATUS "+ Fetching [OpenCV] from $ENV{OpenCV_DIR}.")
