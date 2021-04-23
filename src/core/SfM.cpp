@@ -6,6 +6,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <Ikit/STL/ILog.h>
 #include <ostream>
+#include <mutex>
+#include <thread>
 using namespace std;
 using namespace cv;
 using namespace KTKR::MVS;
@@ -51,13 +53,13 @@ void KTKR::MVS::SfM::runSfM()
 void KTKR::MVS::SfM::extractFeatures()
 {
     ILog(this->_debugLevel, KTKR::LOG_INFO, "=== Extract Features ===");
-    
+
     mImageFeatures.resize(mImages.size());
 
     for (size_t i = 0; i < mImages.size(); i++)
     {
         mImageFeatures[i] = SfMFeature::Get()->extractFeatures(mImages[i]);
-        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "INFO: Extracted file: ", i);
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "\tExtracted file: ", i);
     }
 }
 
@@ -65,13 +67,48 @@ void KTKR::MVS::SfM::createFeatureMatchMatrix()
 {
     ILog(this->_debugLevel, KTKR::LOG_INFO, "=== Create Feature Matrix ===");
 
-    const size_t imageNum = mImages.size();
-    mFeatureMatchMatrix.resize(imageNum, vector<Matching>(imageNum));
+    const size_t numImages = mImages.size();
+    mFeatureMatchMatrix.resize(numImages, vector<Matching>(numImages));
 
     vector<ImagePair> pairs;
-    for (size_t i = 0; i < imageNum; i++)
-        for (size_t j = i + 1; i < imageNum; j++)
+    for (size_t i = 0; i < numImages; i++)
+        for (size_t j = i + 1; j < numImages; j++)
             pairs.emplace_back(i, j);
+
+    vector<thread> threads;
+    const int numThreads = std::thread::hardware_concurrency() - 1;
+    const int numPairsForThread = (numThreads > pairs.size()) ? 1 : (int)ceilf((float)(pairs.size()) / numThreads);
+
+    mutex writeMutex;
+
+    ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Launch ", numThreads, " threads with ", numPairsForThread, " pairs per thread...");
+
+    //invoke each thread with its pairs to process (if less pairs than threads, invoke only #pairs threads with 1 pair each)
+    for (int threadId = 0; threadId < MIN(numThreads, static_cast<int>(pairs.size())); threadId++)
+    {
+        threads.push_back(thread([&, threadId] {
+            const int startingPair = numPairsForThread * threadId;
+
+            for (int j = 0; j < numPairsForThread; j++)
+            {
+                const int pairId = startingPair + j;
+
+                //make sure threads don't overflow the pairs
+                if (pairId >= pairs.size())
+                    break;
+
+                const ImagePair &pair = pairs[pairId];
+
+                mFeatureMatchMatrix[pair.left][pair.right] = SfMFeature::Get()->matchFeatures(mImageFeatures[pair.left], mImageFeatures[pair.right]);
+
+                writeMutex.lock();
+                ILog(this->_debugLevel, KTKR::LOG_DEBUG, "\tThread ", threadId, ": Match (pair ", pairId, ") ", pair.left, ", ", pair.right, ": ", mFeatureMatchMatrix[pair.left][pair.right].size(), " matched features");
+                writeMutex.unlock();
+            }
+        }));
+    }
+    for (auto &t : threads)
+        t.join();
 }
 // =================================================
 

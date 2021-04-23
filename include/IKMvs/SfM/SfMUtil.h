@@ -21,6 +21,7 @@ namespace KTKR::MVS
 
     struct ImagePair
     {
+        ImagePair(size_t l, size_t r) : left{l}, right{r} {};
         size_t left, right;
     };
 
@@ -41,7 +42,7 @@ namespace KTKR::MVS
 
     using PointCloud = std::vector<Point3DInMap>;
     using PointCloudRGB = std::vector<Point3DInMapRGB>;
-    
+
     /**
      * Convert Keypoints to Points2f
      * @param kps keypoints
