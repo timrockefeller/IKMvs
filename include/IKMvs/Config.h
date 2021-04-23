@@ -2,9 +2,7 @@
 
 namespace KTKR::MVS
 {
-    class Config
-    {
-        public:
-        static const size_t SIFT_GAUSSKERN = 2;
-    };
+    static const size_t SIFT_GAUSSKERN = 2;
+    const double NN_MATCH_RATIO = 0.8f;
+
 } // namespace KTKR::MVS

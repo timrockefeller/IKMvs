@@ -3,4 +3,5 @@ IK_AddTarget(
     INC "${PROJECT_SOURCE_DIR}/include"
     LIB
         ${OpenCV_LIBS}
+        KTKR::IKit_core
 )
