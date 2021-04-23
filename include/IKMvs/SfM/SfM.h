@@ -9,6 +9,7 @@
 #include "SfMFeature.h"
 #include <Ikit/STL/ILog.h>
 #include <Ikit/STL/Singleton.h>
+#include <map>
 namespace KTKR::MVS
 {
 
@@ -16,27 +17,32 @@ namespace KTKR::MVS
     {
         OK = 0,
         ERR,
-        ERR_LOADING_IMAGE
+        ERR_FILE_OPENING
     };
 
     class SfM : public KTKR::Singleton<SfM>
     {
-    private:
-        KTKR::DebugLogLevel _debugLevel;
-
-        // datasets
-        std::vector<cv::Mat> mImages;
-        std::vector<Features> mImageFeatures;
-        MatchMatrix mFeatureMatchMatrix;
 
     public:
         SfM() : _debugLevel{KTKR::DebugLogLevel::LOG_TRACE} {}
         ~SfM() = default;
 
         void Init();
+        ErrorCode LoadIntrinsics(const std::string &intrinsicsFilePath);
         ErrorCode LoadImage(std::vector<std::string> paths);
         void runSfM();
         void extractFeatures();
         void createFeatureMatchMatrix();
+        void findBaselineTriangulation();
+
+        std::map<float, ImagePair> sortViewsForBaseline();
+        // private:
+        KTKR::DebugLogLevel _debugLevel;
+
+        // datasets
+        std::vector<cv::Mat> mImages;
+        std::vector<Features> mImageFeatures;
+        MatchMatrix mFeatureMatchMatrix;
+        Intrinsics mIntrinsics;
     };
 } // namespace KTKR::MVS

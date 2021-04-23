@@ -1,6 +1,8 @@
 #pragma once
 #include "SfMUtil.h"
 #include <Ikit/STL/Singleton.h>
+#include <opencv2/features2d.hpp>
+#include <opencv2/xfeatures2d.hpp>
 namespace KTKR::MVS
 {
     class SfMFeature : public KTKR::Singleton<SfMFeature>
