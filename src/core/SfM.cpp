@@ -1,17 +1,26 @@
+#include <ostream>
+#include <mutex>
+#include <thread>
+
+#include <IKMvs/Config.h>
+#include <Ikit/STL/ILog.h>
+
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 #include <IKMvs/SfM/SfM.h>
 #include <IKMvs/SfM/SfMUtil.h>
 #include <IKMvs/SfM/SfMFeature.h>
 #include <IKMvs/SfM/SfMStereo.h>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <Ikit/STL/ILog.h>
-#include <ostream>
-#include <mutex>
-#include <thread>
+
+#include <IKMvs/CameraCalibration/Calibration.h>
+
 using namespace std;
 using namespace cv;
 using namespace KTKR::MVS;
+
 // =================================================
+
 void KTKR::MVS::SfM::Init()
 {
 #if _DEBUG
@@ -20,6 +29,19 @@ void KTKR::MVS::SfM::Init()
     _debugLevel = KTKR::LOG_INFO;
 #endif
 }
+
+ErrorCode KTKR::MVS::SfM::LoadIntrinsics(const std::string &intrinsicsFilePath)
+{
+    if (CalibrationManager::Get()->ReadCalibrationParameters(intrinsicsFilePath))
+    {
+        mIntrinsics.K = CalibrationManager::Get()->GetCameraMatrix();
+        mIntrinsics.Kinv = mIntrinsics.K.inv();
+        mIntrinsics.distortion = CalibrationManager::Get()->GetDistortion();
+        return OK;
+    }
+    return ERR_FILE_OPENING;
+}
+
 ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths)
 {
 
@@ -37,7 +59,7 @@ ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths)
         if (!mImages[i].data)
         {
             ILog(this->_debugLevel, KTKR::LOG_INFO, "ERROR: Loading image from ", paths[i]);
-            return ERR_LOADING_IMAGE;
+            return ERR_FILE_OPENING;
         }
         // need resize?
         cv::resize(mImages[i], mImages[i], Size(1200, 800));
@@ -59,7 +81,7 @@ void KTKR::MVS::SfM::extractFeatures()
     for (size_t i = 0; i < mImages.size(); i++)
     {
         mImageFeatures[i] = SfMFeature::Get()->extractFeatures(mImages[i]);
-        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "\tExtracted file: ", i);
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "\tExtracted image id: ", i, " with ", mImageFeatures[i].points.size(), " keypoints.");
     }
 }
 
@@ -110,15 +132,54 @@ void KTKR::MVS::SfM::createFeatureMatchMatrix()
     for (auto &t : threads)
         t.join();
 }
-// =================================================
 
-// =================================================
-
-void KTKR::MVS::KeyPointsToPoints(const Keypoints &kps, Points2f &ps)
+void KTKR::MVS::SfM::findBaselineTriangulation()
 {
-    ps.clear();
-    for (const auto &kp : kps)
+    ILog(this->_debugLevel, KTKR::LOG_INFO, "=== Find Baseline Triangulation ===");
+
+    ILog(this->_debugLevel, KTKR::LOG_DEBUG, "--- Sort views by homography inliers");
+    auto pairsHomographyInliers = sortViewsForBaseline();
+
+    Matx34f Pleft = Matx34f::eye();
+    Matx34f Pright = Matx34f::eye();
+    PointCloud pointCloud;
+    ILog(this->_debugLevel, KTKR::LOG_DEBUG, "--- Try views in triangulation");
+
+    for (auto &imagePair : pairsHomographyInliers)
     {
-        ps.push_back(kp.pt);
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Trying ", imagePair.second, " ratio: ", imagePair.first);
+
+        auto i = imagePair.second.left;
+        auto j = imagePair.second.right;
+
+        // TODO
     }
+}
+
+map<float, ImagePair> KTKR::MVS::SfM::sortViewsForBaseline()
+{
+    ILog(this->_debugLevel, KTKR::LOG_INFO, "--- Find Views Homography Inliers");
+    map<float, ImagePair> matchesSizes;
+
+    const size_t numImages = mImages.size();
+    for (size_t i = 0; i < numImages - 1; i++)
+    {
+        for (size_t j = i + 1; j < numImages; j++)
+        {
+            if (mFeatureMatchMatrix[i][j].size() < MIN_POINT_COUNT_FOR_HOMOGRAPHY)
+            {
+                //Not enough points in matching
+                matchesSizes.emplace(std::piecewise_construct,
+                                     std::forward_as_tuple(1.0f),
+                                     std::forward_as_tuple(i, j));
+                continue;
+            }
+
+            const auto numInliers = SfMStereo::Get()->findHomographyInlier(mImageFeatures[i], mImageFeatures[j], mFeatureMatchMatrix[i][j]);
+            const auto inliersRatio = static_cast<float>(numInliers) / static_cast<float>(mFeatureMatchMatrix[i][j].size());
+            matchesSizes[inliersRatio] = {i, j};
+            ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Homography inliers ratio: ", i, ", ", j, " : ", inliersRatio);
+        }
+    }
+    return matchesSizes;
 }
