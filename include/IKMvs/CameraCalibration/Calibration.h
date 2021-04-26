@@ -37,7 +37,7 @@ namespace KTKR::MVS
                  << dist_coeffs << std::endl;
             fout.close();
         }
-        bool ReadCalibrationParameters(std::string filepath) noexcept
+        bool ReadCalibrationParameters(const std::string& filepath) noexcept
         {
             std::ifstream fin(filepath);
             if (fin)
@@ -68,6 +68,7 @@ namespace KTKR::MVS
         }
         void SetBoardSize(cv::Size boardSize = cv::Size(7, 5)) { board_size = std::move(boardSize); }
         cv::Mat GetCameraMatrix() noexcept { return camera_matrix; }
+        cv::Mat GetDistortion() noexcept { return dist_coeffs; }
     };
 
 } // namespace KTKR::MVS
