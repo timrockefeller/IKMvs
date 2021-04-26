@@ -13,14 +13,6 @@
 namespace KTKR::MVS
 {
 
-    enum ErrorCode
-    {
-        OK = 0,
-        ERR,
-        ERR_FILE_OPENING,
-        ERR_RUNTIME_ABORT
-    };
-
     class SfM : public KTKR::Singleton<SfM>
     {
 
@@ -36,6 +28,8 @@ namespace KTKR::MVS
         void createFeatureMatchMatrix();
         void findBaselineTriangulation();
 
+
+        void adjustCurBundle();
         std::map<float, ImagePair> sortViewsForBaseline();
         // private:
         KTKR::DebugLogLevel _debugLevel;
@@ -45,5 +39,9 @@ namespace KTKR::MVS
         std::vector<Features> mImageFeatures;
         MatchMatrix mFeatureMatchMatrix;
         Intrinsics mIntrinsics;
+        PointCloud mReconstructionCloud;
+        std::vector<cv::Matx34f> mCameraPoses;
+        std::set<int> mDoneViews;
+        std::set<int> mGoodViews;
     };
 } // namespace KTKR::MVS

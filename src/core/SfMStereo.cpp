@@ -1,9 +1,7 @@
 #include <IKMvs/SfM/SfMStereo.h>
-#include <IKMvs/SfM/SfMUtil.h>
 #include <IKMvs/Config.h>
 using namespace KTKR::MVS;
 using namespace cv;
-using namespace cv::xfeatures2d;
 using namespace std;
 
 int SfMStereo::findHomographyInlier(const Features &left,

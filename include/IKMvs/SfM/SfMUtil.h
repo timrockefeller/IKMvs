@@ -52,6 +52,14 @@ namespace KTKR::MVS
         cv::Mat distortion;
     };
 
+    enum ErrorCode
+    {
+        OK = 0,
+        ERR,
+        ERR_FILE_OPENING,
+        ERR_RUNTIME_ABORT
+    };
+
     /**
      * Convert Keypoints to Points2f
      * @param kps keypoints

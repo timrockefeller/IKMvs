@@ -12,6 +12,7 @@
 #include <IKMvs/SfM/SfMUtil.h>
 #include <IKMvs/SfM/SfMFeature.h>
 #include <IKMvs/SfM/SfMStereo.h>
+#include <IKMvs/SfM/SfMBundleAdjustment.h>
 
 #include <IKMvs/CameraCalibration/Calibration.h>
 
@@ -147,7 +148,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
 
     for (auto &imagePair : pairsHomographyInliers)
     {
-        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Trying ", imagePair.second, " ratio: ", imagePair.first);
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Trying ", imagePair.second.left, ", ", imagePair.second.right, " ratio: ", imagePair.first);
 
         auto i = imagePair.second.left;
         auto j = imagePair.second.right;
@@ -168,7 +169,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
             Pright);
         if (rsl != OK)
         {
-            ILog(this->_debugLevel, KTKR::LOG_WARN, "Error obtaining stereo view in ", imagePair.second, ", skip.");
+            ILog(this->_debugLevel, KTKR::LOG_WARN, "Error obtaining stereo view in ", imagePair.second.left,", ", imagePair.second.right, ". skip.");
             continue;
         }
 
@@ -183,10 +184,44 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
 
         // =================================================
 
-        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "--- Triangulate from stereo views: ", imagePair.second);
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "--- Triangulate from stereo views: ", imagePair.second.left, ", ", imagePair.second.right);
 
+        rsl = SfMStereo::Get()->triangulateViews(
+            mIntrinsics,
+            imagePair.second,
+            mFeatureMatchMatrix[i][j],
+            mImageFeatures[i],
+            mImageFeatures[j],
+            Pleft,
+            Pright,
+            pointCloud);
+        if (rsl != OK)
+        {
+            ILog(this->_debugLevel, KTKR::LOG_WARN, "Error triangulating: ", imagePair.second.left, ", ", imagePair.second.right, ". skip.");
+            continue;
+        }
+        mReconstructionCloud = pointCloud;
+        mCameraPoses[i] = Pleft;
+        mCameraPoses[j] = Pright;
+        mDoneViews.insert(i);
+        mDoneViews.insert(j);
+        mGoodViews.insert(i);
+        mGoodViews.insert(j);
+
+        adjustCurBundle();
+
+        break; // only first two image need to calculate in this turn
         // TODO
     }
+}
+
+void SfM::adjustCurBundle()
+{
+    SfMBundleAdjustment::Get()->adjustBundle(
+        mReconstructionCloud,
+        mCameraPoses,
+        mIntrinsics,
+        mImageFeatures);
 }
 
 map<float, ImagePair> KTKR::MVS::SfM::sortViewsForBaseline()
