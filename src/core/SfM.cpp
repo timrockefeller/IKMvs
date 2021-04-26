@@ -152,6 +152,39 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
         auto i = imagePair.second.left;
         auto j = imagePair.second.right;
 
+        // =================================================
+
+        ILog(this->_debugLevel, KTKR::LOG_TRACE, "--- Find camera matrices");
+
+        Matching prunedMatching;
+
+        auto rsl = SfMStereo::Get()->findCameraMatricesFromMatch(
+            mIntrinsics,
+            mFeatureMatchMatrix[i][j],
+            mImageFeatures[i],
+            mImageFeatures[j],
+            prunedMatching,
+            Pleft,
+            Pright);
+        if (rsl != OK)
+        {
+            ILog(this->_debugLevel, KTKR::LOG_WARN, "Error obtaining stereo view in ", imagePair.second, ", skip.");
+            continue;
+        }
+
+        auto poseInliersRatio = static_cast<float>(prunedMatching.size()) / static_cast<float>(mFeatureMatchMatrix[i][j].size());
+        ILog(this->_debugLevel, KTKR::LOG_TRACE, "pose inliers ratio ", poseInliersRatio);
+        if (poseInliersRatio < POSE_INLIERS_MINIMAL_RATIO)
+        {
+            ILog(this->_debugLevel, KTKR::LOG_TRACE, "insufficient pose inliers. skip.");
+            continue;
+        }
+        mFeatureMatchMatrix[i][j] = prunedMatching;
+
+        // =================================================
+
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "--- Triangulate from stereo views: ", imagePair.second);
+
         // TODO
     }
 }

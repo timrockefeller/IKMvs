@@ -17,7 +17,8 @@ namespace KTKR::MVS
     {
         OK = 0,
         ERR,
-        ERR_FILE_OPENING
+        ERR_FILE_OPENING,
+        ERR_RUNTIME_ABORT
     };
 
     class SfM : public KTKR::Singleton<SfM>
