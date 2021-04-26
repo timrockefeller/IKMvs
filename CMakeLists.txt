@@ -10,6 +10,8 @@ include(IKInit)
 
 IK_AddPackage(IKit 0.0.4)
 
+
+# ========= 3rdParty =========
 # OpenCV
 message(STATUS "+ Fetching [OpenCV] from $ENV{OpenCV_DIR}.")
 set(OpenCV_DIR $ENV{OpenCV_DIR})
@@ -26,6 +28,14 @@ endif()
 # include_directories(${PCL_INCLUDE_DIRS})
 # link_directories(${PCL_LIBRARY_DIRS})
 # add_definitions(${PCL_DEFINITIONS})
+message(STATUS "+ Fetching [Ceres] from $ENV{Ceres_DIR}.")
+set(Ceres_DIR $ENV{Ceres_DIR})
+find_package( Ceres REQUIRED )
+if(NOT Ceres_FOUND)
+    message(FATAL_ERROR "Package [Ceres] not found.")
+endif()
+# ============================
+
 
 IK_InitProject(${PROJECT_NAME})
 
