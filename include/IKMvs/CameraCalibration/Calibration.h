@@ -5,14 +5,6 @@
 #include <string>
 namespace KTKR::MVS
 {
-
-    cv::Point2d pixel2cam(const cv::Point2d &p, const cv::Mat &K)
-    {
-        return cv::Point2d(
-            (p.x - K.at<float>(0, 2)) / K.at<float>(0, 0),
-            (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1));
-    }
-
     class CalibrationManager : public KTKR::Singleton<CalibrationManager>
     {
     private:
@@ -23,8 +15,8 @@ namespace KTKR::MVS
     public:
         CalibrationManager()
         {
-            camera_matrix = cv::Mat(3, 3, CV_32FC1, cv::Scalar::all(0));
-            dist_coeffs = cv::Mat(1, 5, CV_32FC1, cv::Scalar::all(0));
+            camera_matrix = cv::Mat(3, 3, CV_64FC1, cv::Scalar::all(0));
+            dist_coeffs = cv::Mat(1, 5, CV_64FC1, cv::Scalar::all(0));
         }
 
         bool SaveCalibrationParameters(std::string filepath) noexcept
@@ -37,7 +29,7 @@ namespace KTKR::MVS
                  << dist_coeffs << std::endl;
             fout.close();
         }
-        bool ReadCalibrationParameters(const std::string& filepath) noexcept
+        bool ReadCalibrationParameters(const std::string &filepath) noexcept
         {
             std::ifstream fin(filepath);
             if (fin)
@@ -50,7 +42,7 @@ namespace KTKR::MVS
                     for (int i = 0; i < 3; i++)
                     {
                         fin >> getdata;
-                        camera_matrix.at<float>(j, i) = static_cast<float>(getdata);
+                        camera_matrix.at<double>(j, i) = getdata;
                         fin >> read;
                     }
                 fin >> read >> read;
@@ -58,7 +50,7 @@ namespace KTKR::MVS
                 for (int i = 0; i < 5; i++)
                 {
                     fin >> getdata;
-                    dist_coeffs.at<float>(i) = static_cast<float>(getdata);
+                    dist_coeffs.at<double>(i) = getdata;
                     fin >> read;
                 }
                 fin.close();
