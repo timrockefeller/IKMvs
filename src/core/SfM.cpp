@@ -52,7 +52,8 @@ ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths)
         mImages.clear();
     }
     mImages.resize(paths.size());
-
+    mCameraPoses.resize(paths.size());
+    
     // load
     for (size_t i = 0; i < paths.size(); i++)
     {
@@ -169,7 +170,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
             Pright);
         if (rsl != OK)
         {
-            ILog(this->_debugLevel, KTKR::LOG_WARN, "Error obtaining stereo view in ", imagePair.second.left,", ", imagePair.second.right, ". skip.");
+            ILog(this->_debugLevel, KTKR::LOG_WARN, "Error obtaining stereo view in ", imagePair.second.left, ", ", imagePair.second.right, ". skip.");
             continue;
         }
 
@@ -250,4 +251,39 @@ map<float, ImagePair> KTKR::MVS::SfM::sortViewsForBaseline()
         }
     }
     return matchesSizes;
+}
+
+ErrorCode KTKR::MVS::SfM::savePointCloudToPLY(const std::string &prefix)
+{
+    ILog(this->_debugLevel, KTKR::LOG_INFO, "Saving result reconstruction with prefix: ", prefix);
+
+    ofstream ofs(prefix + "_points.ply");
+    if (ofs.fail())
+        return ERR_FILE_OPENING;
+
+    // header
+    ofs << "ply                 " << endl
+        << "format ascii 1.0    " << endl
+        << "element vertex " << mReconstructionCloud.size() << endl
+        << "property float x    " << endl
+        << "property float y    " << endl
+        << "property float z    " << endl
+        << "property uchar red  " << endl
+        << "property uchar green" << endl
+        << "property uchar blue " << endl
+        << "end_header          " << endl;
+
+    for (const auto &p : mReconstructionCloud)
+    {
+        // get color from first originating view
+        auto originatingView = p.originatingViews.begin();
+        const int viewIdx = originatingView->first;
+        Point2f p2d = mImageFeatures[viewIdx].points[originatingView->second];
+        Vec3b pointColor = mImages[viewIdx].at<Vec3b>(p2d);
+        // write vertex
+        ofs << p.p.x << " " << p.p.y << " " << p.p.z << " " << (int)pointColor(2) << " " << (int)pointColor(1) << " " << (int)pointColor(0) << " " << endl;
+    }
+    ofs.close();
+    ILog(this->_debugLevel, KTKR::LOG_INFO, "Saved.");
+    return OK;
 }

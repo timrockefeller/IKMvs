@@ -28,9 +28,10 @@ namespace KTKR::MVS
         void createFeatureMatchMatrix();
         void findBaselineTriangulation();
 
-
         void adjustCurBundle();
         std::map<float, ImagePair> sortViewsForBaseline();
+        ErrorCode savePointCloudToPLY(const std::string &prefix);
+
         // private:
         KTKR::DebugLogLevel _debugLevel;
 
