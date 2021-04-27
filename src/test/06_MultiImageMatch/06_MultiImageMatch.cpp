@@ -25,7 +25,9 @@ int main()
         "../asset/sanae/4.JPG",
         "../asset/sanae/5.JPG",
         "../asset/sanae/6.JPG"};
-
+    // const vector<string> images = {
+    //     "../asset/sanae_01.jpg",
+    //     "../asset/sanae_02.jpg"};
     SfM::Get()->Init();
     SfM::Get()->LoadIntrinsics("../asset/calibration/caliberation_result.txt");
     SfM::Get()->LoadImage(images);
@@ -34,11 +36,12 @@ int main()
     SfM::Get()->createFeatureMatchMatrix();
     SfM::Get()->findBaselineTriangulation();
 
+    SfM::Get()->savePointCloudToPLY("../asset/06_result_sanae");
     // TODO ...
 
 #if _DEBUG
     Mat des;
-    const int l = 2, r = 3;
+    const int l = 0, r = 1;
     drawMatches(SfM::Get()->mImages[l], SfM::Get()->mImageFeatures[l].keyPoints,
                 SfM::Get()->mImages[r], SfM::Get()->mImageFeatures[r].keyPoints,
                 SfM::Get()->mFeatureMatchMatrix[l][r], des);
