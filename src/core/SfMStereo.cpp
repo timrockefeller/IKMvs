@@ -37,7 +37,12 @@ ErrorCode SfMStereo::findCameraMatricesFromMatch(const Intrinsics &intrinsics,
         cerr << "Intrinsics matrix(K) must be initialized." << endl;
         return ErrorCode::ERR_RUNTIME_ABORT;
     }
+    if (matches.size() < 6)
+    {
 
+        cerr << "Need at least 6 matches to recover pose." << endl;
+        return ErrorCode::ERR_DO_NOT_FIT;
+    }
     Features alignedL, alignedR;
     GetAlignedPointsFromMatch(featureL, featureR, matches,
                               alignedL, alignedR);
@@ -132,6 +137,47 @@ ErrorCode SfMStereo::triangulateViews(const Intrinsics &intrinsics,
 
         pointCloud.push_back(p);
     }
+
+    return OK;
+}
+ErrorCode SfMStereo::findCameraPoseFrom2D3DMatch(const Intrinsics &intrinsics,
+                                                 const Image2D3DMatch &match,
+                                                 cv::Matx34f &cameraPose)
+{
+    //Recover camera pose using 2D-3D correspondence
+    Mat rvec, tvec;
+    Mat inliers;
+    try
+    {
+        solvePnPRansac(
+            match.points3D,
+            match.points2D,
+            intrinsics.K,
+            intrinsics.distortion,
+            rvec,
+            tvec,
+            false,
+            100,
+            RANSAC_THRESHOLD,
+            0.99,
+            inliers);
+    }
+    catch (Exception e)
+    {
+        return ERR_DO_NOT_FIT;
+    }
+    //check inliers ratio and reject if too small
+    if (((float)countNonZero(inliers) / (float)match.points2D.size()) < POSE_INLIERS_MINIMAL_RATIO)
+    {
+        cerr << "Inliers ratio is too small: " << countNonZero(inliers) << " / " << match.points2D.size() << endl;
+        return ERR_DO_NOT_FIT;
+    }
+
+    Mat rotMat;
+    Rodrigues(rvec, rotMat); //convert to a rotation matrix
+
+    rotMat.copyTo(Mat(3, 4, CV_32FC1, cameraPose.val)(ROT));
+    tvec.copyTo(Mat(3, 4, CV_32FC1, cameraPose.val)(TRA));
 
     return OK;
 }

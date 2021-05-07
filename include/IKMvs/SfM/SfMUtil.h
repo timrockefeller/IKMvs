@@ -7,6 +7,7 @@ namespace KTKR::MVS
 {
     using Keypoints = std::vector<cv::KeyPoint>;
     using Points2f = std::vector<cv::Point2f>;
+    using Points3f = std::vector<cv::Point3f>;
     struct Features
     {
         Keypoints keyPoints;
@@ -18,6 +19,13 @@ namespace KTKR::MVS
     using Matching = std::vector<cv::DMatch>;
     // view i to view j
     using MatchMatrix = std::vector<std::vector<Matching>>;
+
+    struct Image2D3DMatch
+    {
+        Points2f points2D;
+        Points3f points3D;
+    };
+    using Images2D3DMatches = std::map<int, Image2D3DMatch>;
 
     struct ImagePair
     {
@@ -52,12 +60,19 @@ namespace KTKR::MVS
         cv::Mat distortion;
     };
 
+    ///Rotational element in a 3x4 matrix
+    const cv::Rect ROT(0, 0, 3, 3);
+
+    ///Translational element in a 3x4 matrix
+    const cv::Rect TRA(3, 0, 1, 3);
+
     enum ErrorCode
     {
         OK = 0,
         ERR,
         ERR_FILE_OPENING,
-        ERR_RUNTIME_ABORT
+        ERR_RUNTIME_ABORT,
+        ERR_DO_NOT_FIT
     };
 
     /**
