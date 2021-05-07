@@ -22,13 +22,16 @@ namespace KTKR::MVS
 
         void Init();
         ErrorCode LoadIntrinsics(const std::string &intrinsicsFilePath);
-        ErrorCode LoadImage(std::vector<std::string> paths);
+        ErrorCode LoadImage(std::vector<std::string> paths, cv::Size2f = cv::Size2f(0, 0));
         void runSfM();
         void extractFeatures();
         void createFeatureMatchMatrix();
         void findBaselineTriangulation();
+        void addMoreViewsToReconstruction();
 
         void adjustCurBundle();
+        Images2D3DMatches find2D3DMatches();
+        void mergeNewPointCloud(const PointCloud &cloud);
         std::map<float, ImagePair> sortViewsForBaseline();
         ErrorCode savePointCloudToPLY(const std::string &prefix);
 

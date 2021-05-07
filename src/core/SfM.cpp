@@ -43,7 +43,7 @@ ErrorCode KTKR::MVS::SfM::LoadIntrinsics(const std::string &intrinsicsFilePath)
     return ERR_FILE_OPENING;
 }
 
-ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths)
+ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths, cv::Size2f size)
 {
 
     // clear original image
@@ -53,7 +53,7 @@ ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths)
     }
     mImages.resize(paths.size());
     mCameraPoses.resize(paths.size());
-    
+
     // load
     for (size_t i = 0; i < paths.size(); i++)
     {
@@ -64,7 +64,8 @@ ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths)
             return ERR_FILE_OPENING;
         }
         // need resize?
-        cv::resize(mImages[i], mImages[i], Size(1200, 800));
+        if (size.height != 0 && size.width != 0)
+            cv::resize(mImages[i], mImages[i], size);
     }
 
     return OK;
@@ -212,7 +213,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
         adjustCurBundle();
 
         break; // only first two image need to calculate in this turn
-        // TODO
+        // TODO in sequence
     }
 }
 
@@ -253,6 +254,198 @@ map<float, ImagePair> KTKR::MVS::SfM::sortViewsForBaseline()
     return matchesSizes;
 }
 
+void KTKR::MVS::SfM::addMoreViewsToReconstruction()
+{
+    ILog(this->_debugLevel, KTKR::LOG_INFO, "--- Add views");
+
+    while (mDoneViews.size() != mImages.size())
+    {
+        ErrorCode rsl = OK;
+        size_t bestView;
+        size_t bestNumMatches = 0;
+
+        // =================================================
+        // step A. Find the best view to add, according to the largest number of 2D-3D corresponding points
+        Images2D3DMatches matches2D3D = find2D3DMatches();
+
+        for (const auto &match2D3D : matches2D3D)
+        {
+            if (match2D3D.second.points2D.size() == 0 || match2D3D.second.points3D.size() == 0)
+            {
+                mDoneViews.insert(match2D3D.first);
+                rsl = ErrorCode::ERR_RUNTIME_ABORT;
+            }
+            const size_t numMatches = match2D3D.second.points2D.size();
+            if (numMatches > bestNumMatches)
+            {
+                bestView = match2D3D.first;
+                bestNumMatches = numMatches;
+            }
+        }
+        // step B. Sequenly by adding `cur` flag in order to fit video or continously image queue.
+        // TODO
+
+        // =================================================
+        if (rsl != OK)
+            continue;
+
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Best view ", bestView, " has ", bestNumMatches, " matches");
+        ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Adding ", bestView, " to existing ", Mat(vector<int>(mGoodViews.begin(), mGoodViews.end())).t());
+
+        mDoneViews.insert(bestView);
+
+        //recover the new view camera pose
+        Matx34f newCameraPose;
+        rsl = SfMStereo::Get()->findCameraPoseFrom2D3DMatch(
+            mIntrinsics,
+            matches2D3D[bestView],
+            newCameraPose);
+        if (rsl != OK)
+        {
+            ILog(this->_debugLevel, KTKR::LOG_WARN, "Cannot recover camera pose for view ", bestView, ". skip.");
+            continue;
+        }
+
+        mCameraPoses[bestView] = newCameraPose;
+
+        // match with other good view
+        bool anyViewSuccess = false;
+        for (const auto goodView : mGoodViews)
+        {
+            size_t viewIdxL = (goodView < bestView) ? goodView : bestView;
+            size_t viewIdxR = (goodView < bestView) ? bestView : goodView;
+
+            Matx34f Pleft = Matx34f::eye();
+            Matx34f Pright = Matx34f::eye();
+            Matching prunedMatching;
+            auto rsl = SfMStereo::Get()->findCameraMatricesFromMatch(
+                mIntrinsics,
+                mFeatureMatchMatrix[viewIdxL][viewIdxR],
+                mImageFeatures[viewIdxL],
+                mImageFeatures[viewIdxR],
+                prunedMatching,
+                Pleft,
+                Pright);
+
+            PointCloud pointCloud;
+            mFeatureMatchMatrix[viewIdxL][viewIdxR] = prunedMatching;
+            if (rsl == OK)
+            {
+                //triangulate the matching points
+                rsl = SfMStereo::Get()->triangulateViews(
+                    mIntrinsics,
+                    {viewIdxL, viewIdxR},
+                    mFeatureMatchMatrix[viewIdxL][viewIdxR],
+                    mImageFeatures[viewIdxL],
+                    mImageFeatures[viewIdxR],
+                    mCameraPoses[viewIdxL],
+                    mCameraPoses[viewIdxR],
+                    pointCloud);
+            }
+
+            if (rsl == OK)
+            {
+                ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Merge triangulation between ", viewIdxL, " and ", viewIdxR,
+                     " (# matching pts = ", (mFeatureMatchMatrix[viewIdxL][viewIdxR].size()), ") ");
+                mergeNewPointCloud(pointCloud);
+                anyViewSuccess = true;
+            }
+            else
+            {
+                ILog(this->_debugLevel, KTKR::LOG_WARN, "Failed to triangulate ", viewIdxL, " and ", viewIdxR);
+            }
+        }
+        //Adjust bundle if any additional view was added
+        if (anyViewSuccess)
+            adjustCurBundle();
+        mGoodViews.insert(bestView);
+    }
+}
+
+void SfM::mergeNewPointCloud(const PointCloud &cloud)
+{
+    const size_t numImages = mImages.size();
+    MatchMatrix mergeMatchMatrix;
+    mergeMatchMatrix.resize(numImages, vector<Matching>(numImages));
+
+    size_t newPoints = 0;
+    size_t mergedPoints = 0;
+
+    for (const Point3DInMap &p : cloud)
+    {
+        const Point3f newPoint = p.p; //new 3D point
+
+        bool foundAnyMatchingExistingViews = false;
+        bool foundMatching3DPoint = false;
+        for (Point3DInMap &existingPoint : mReconstructionCloud)
+        {
+            if (norm(existingPoint.p - newPoint) < MERGE_CLOUD_POINT_MIN_MATCH_DISTANCE)
+            {
+                //This point is very close to an existing 3D cloud point
+                foundMatching3DPoint = true;
+
+                //Look for common 2D features to confirm match
+                for (const auto &newKv : p.originatingViews)
+                {
+                    //kv.first = new point's originating view
+                    //kv.second = new point's view 2D feature index
+
+                    for (const auto &existingKv : existingPoint.originatingViews)
+                    {
+                        //existingKv.first = existing point's originating view
+                        //existingKv.second = existing point's view 2D feature index
+
+                        bool foundMatchingFeature = false;
+
+                        const bool newIsLeft = newKv.first < existingKv.first;
+                        const int leftViewIdx = (newIsLeft) ? newKv.first : existingKv.first;
+                        const int leftViewFeatureIdx = (newIsLeft) ? newKv.second : existingKv.second;
+                        const int rightViewIdx = (newIsLeft) ? existingKv.first : newKv.first;
+                        const int rightViewFeatureIdx = (newIsLeft) ? existingKv.second : newKv.second;
+
+                        const Matching &matching = mFeatureMatchMatrix[leftViewIdx][rightViewIdx];
+                        for (const DMatch &match : matching)
+                        {
+                            if (match.queryIdx == leftViewFeatureIdx &&
+                                match.trainIdx == rightViewFeatureIdx &&
+                                match.distance < MERGE_CLOUD_FEATURE_MIN_MATCH_DISTANCE)
+                            {
+
+                                mergeMatchMatrix[leftViewIdx][rightViewIdx].push_back(match);
+
+                                //Found a 2D feature match for the two 3D points - merge
+                                foundMatchingFeature = true;
+                                break;
+                            }
+                        }
+
+                        if (foundMatchingFeature)
+                        {
+                            //Add the new originating view, and feature index
+                            existingPoint.originatingViews[newKv.first] = newKv.second;
+
+                            foundAnyMatchingExistingViews = true;
+                        }
+                    }
+                }
+            }
+            if (foundAnyMatchingExistingViews)
+            {
+                mergedPoints++;
+                break; //Stop looking for more matching cloud points
+            }
+        }
+
+        if (!foundAnyMatchingExistingViews && !foundMatching3DPoint)
+        {
+            //This point did not match any existing cloud points - add it as new.
+            mReconstructionCloud.push_back(p);
+            newPoints++;
+        }
+    }
+    ILog(this->_debugLevel, KTKR::LOG_DEBUG, " adding: ", cloud.size(), " (new: ", newPoints, ", merged: ", mergedPoints, ")");
+}
+
 ErrorCode KTKR::MVS::SfM::savePointCloudToPLY(const std::string &prefix)
 {
     ILog(this->_debugLevel, KTKR::LOG_INFO, "Saving result reconstruction with prefix: ", prefix);
@@ -286,4 +479,76 @@ ErrorCode KTKR::MVS::SfM::savePointCloudToPLY(const std::string &prefix)
     ofs.close();
     ILog(this->_debugLevel, KTKR::LOG_INFO, "Saved.");
     return OK;
+}
+
+Images2D3DMatches KTKR::MVS::SfM::find2D3DMatches()
+{
+    Images2D3DMatches matches;
+
+    //scan all not-done views
+    for (size_t viewIdx = 0; viewIdx < mImages.size(); viewIdx++)
+    {
+        if (mDoneViews.find(viewIdx) != mDoneViews.end())
+        {
+            continue; //skip done views
+        }
+
+        Image2D3DMatch match2D3D;
+
+        //scan all cloud 3D points
+        for (const Point3DInMap &cloudPoint : mReconstructionCloud)
+        {
+            bool found2DPoint = false;
+
+            //scan all originating views for that 3D point
+            for (const auto &origViewAndPoint : cloudPoint.originatingViews)
+            {
+                //check for 2D-2D matching via the match matrix
+                const int originatingViewIndex = origViewAndPoint.first;
+                const int originatingViewFeatureIndex = origViewAndPoint.second;
+
+                //match matrix is upper-triangular (not symmetric) so the left index must be the smaller one
+                const int leftViewIdx = (originatingViewIndex < viewIdx) ? originatingViewIndex : viewIdx;
+                const int rightViewIdx = (originatingViewIndex < viewIdx) ? viewIdx : originatingViewIndex;
+
+                //scan all 2D-2D matches between originating view and new view
+                for (const DMatch &m : mFeatureMatchMatrix[leftViewIdx][rightViewIdx])
+                {
+                    int matched2DPointInNewView = -1;
+                    if (originatingViewIndex < viewIdx)
+                    { //originating view is 'left'
+                        if (m.queryIdx == originatingViewFeatureIndex)
+                        {
+                            matched2DPointInNewView = m.trainIdx;
+                        }
+                    }
+                    else
+                    { //originating view is 'right'
+                        if (m.trainIdx == originatingViewFeatureIndex)
+                        {
+                            matched2DPointInNewView = m.queryIdx;
+                        }
+                    }
+                    if (matched2DPointInNewView >= 0)
+                    {
+                        //This point is matched in the new view
+                        const Features &newViewFeatures = mImageFeatures[viewIdx];
+                        match2D3D.points2D.push_back(newViewFeatures.points[matched2DPointInNewView]);
+                        match2D3D.points3D.push_back(cloudPoint.p);
+                        found2DPoint = true;
+                        break;
+                    }
+                }
+
+                if (found2DPoint)
+                {
+                    break;
+                }
+            }
+        }
+
+        matches[viewIdx] = match2D3D;
+    }
+
+    return matches;
 }
