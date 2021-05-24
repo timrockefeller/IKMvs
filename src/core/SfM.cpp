@@ -22,6 +22,13 @@ using namespace KTKR::MVS;
 
 // =================================================
 
+KTKR::MVS::SfM::SfM() : _debugLevel{KTKR::DebugLogLevel::LOG_TRACE}
+{
+    sfmFeature = SfMFeature();
+    sfmStereo = SfMStereo();
+    sfmBundleAdjustment = SfMBundleAdjustment();
+}
+
 void KTKR::MVS::SfM::Init()
 {
 #if _DEBUG
@@ -29,6 +36,14 @@ void KTKR::MVS::SfM::Init()
 #else
     _debugLevel = KTKR::LOG_INFO;
 #endif
+}
+
+void KTKR::MVS::SfM::SetConfig(Config cfg)
+{
+    this->config = cfg;
+    sfmFeature.SetConfig(cfg);
+    sfmStereo.SetConfig(cfg);
+    sfmBundleAdjustment.SetConfig(cfg);
 }
 
 ErrorCode KTKR::MVS::SfM::LoadIntrinsics(const std::string &intrinsicsFilePath)
@@ -73,6 +88,10 @@ ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths, cv::Size2f size)
 
 void KTKR::MVS::SfM::runSfM()
 {
+    extractFeatures();
+    createFeatureMatchMatrix();
+    findBaselineTriangulation();
+    addMoreViewsToReconstruction();
 }
 
 void KTKR::MVS::SfM::extractFeatures()
@@ -83,7 +102,7 @@ void KTKR::MVS::SfM::extractFeatures()
 
     for (size_t i = 0; i < mImages.size(); i++)
     {
-        mImageFeatures[i] = SfMFeature::Get()->extractFeatures(mImages[i]);
+        mImageFeatures[i] = sfmFeature.extractFeatures(mImages[i]);
         ILog(this->_debugLevel, KTKR::LOG_DEBUG, "\tExtracted image id: ", i, " with ", mImageFeatures[i].points.size(), " keypoints.");
     }
 }
@@ -124,7 +143,7 @@ void KTKR::MVS::SfM::createFeatureMatchMatrix()
 
                 const ImagePair &pair = pairs[pairId];
 
-                mFeatureMatchMatrix[pair.left][pair.right] = SfMFeature::Get()->matchFeatures(mImageFeatures[pair.left], mImageFeatures[pair.right]);
+                mFeatureMatchMatrix[pair.left][pair.right] = sfmFeature.matchFeatures(mImageFeatures[pair.left], mImageFeatures[pair.right]);
 
                 writeMutex.lock();
                 ILog(this->_debugLevel, KTKR::LOG_DEBUG, "\tThread ", threadId, ": Match (pair ", pairId, ") ", pair.left, ", ", pair.right, ": ", mFeatureMatchMatrix[pair.left][pair.right].size(), " matched features");
@@ -161,7 +180,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
 
         Matching prunedMatching;
 
-        auto rsl = SfMStereo::Get()->findCameraMatricesFromMatch(
+        auto rsl = sfmStereo.findCameraMatricesFromMatch(
             mIntrinsics,
             mFeatureMatchMatrix[i][j],
             mImageFeatures[i],
@@ -188,7 +207,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
 
         ILog(this->_debugLevel, KTKR::LOG_DEBUG, "--- Triangulate from stereo views: ", imagePair.second.left, ", ", imagePair.second.right);
 
-        rsl = SfMStereo::Get()->triangulateViews(
+        rsl = sfmStereo.triangulateViews(
             mIntrinsics,
             imagePair.second,
             mFeatureMatchMatrix[i][j],
@@ -219,7 +238,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
 
 void SfM::adjustCurBundle()
 {
-    SfMBundleAdjustment::Get()->adjustBundle(
+    sfmBundleAdjustment.adjustBundle(
         mReconstructionCloud,
         mCameraPoses,
         mIntrinsics,
@@ -245,7 +264,7 @@ map<float, ImagePair> KTKR::MVS::SfM::sortViewsForBaseline()
                 continue;
             }
 
-            const auto numInliers = SfMStereo::Get()->findHomographyInlier(mImageFeatures[i], mImageFeatures[j], mFeatureMatchMatrix[i][j]);
+            const auto numInliers = sfmStereo.findHomographyInlier(mImageFeatures[i], mImageFeatures[j], mFeatureMatchMatrix[i][j]);
             const auto inliersRatio = static_cast<float>(numInliers) / static_cast<float>(mFeatureMatchMatrix[i][j].size());
             matchesSizes[inliersRatio] = {i, j};
             ILog(this->_debugLevel, KTKR::LOG_DEBUG, "Homography inliers ratio: ", i, ", ", j, " : ", inliersRatio);
@@ -296,7 +315,7 @@ void KTKR::MVS::SfM::addMoreViewsToReconstruction()
 
         //recover the new view camera pose
         Matx34f newCameraPose;
-        rsl = SfMStereo::Get()->findCameraPoseFrom2D3DMatch(
+        rsl = sfmStereo.findCameraPoseFrom2D3DMatch(
             mIntrinsics,
             matches2D3D[bestView],
             newCameraPose);
@@ -318,7 +337,7 @@ void KTKR::MVS::SfM::addMoreViewsToReconstruction()
             Matx34f Pleft = Matx34f::eye();
             Matx34f Pright = Matx34f::eye();
             Matching prunedMatching;
-            auto rsl = SfMStereo::Get()->findCameraMatricesFromMatch(
+            auto rsl = sfmStereo.findCameraMatricesFromMatch(
                 mIntrinsics,
                 mFeatureMatchMatrix[viewIdxL][viewIdxR],
                 mImageFeatures[viewIdxL],
@@ -332,7 +351,7 @@ void KTKR::MVS::SfM::addMoreViewsToReconstruction()
             if (rsl == OK)
             {
                 //triangulate the matching points
-                rsl = SfMStereo::Get()->triangulateViews(
+                rsl = sfmStereo.triangulateViews(
                     mIntrinsics,
                     {viewIdxL, viewIdxR},
                     mFeatureMatchMatrix[viewIdxL][viewIdxR],

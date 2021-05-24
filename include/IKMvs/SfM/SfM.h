@@ -7,17 +7,19 @@
 #include "SfMUtil.h"
 #include "SfMStereo.h"
 #include "SfMFeature.h"
+#include "SfMBundleAdjustment.h"
+#include "../Config.h"
 #include <Ikit/STL/ILog.h>
 #include <Ikit/STL/Singleton.h>
 #include <map>
 namespace KTKR::MVS
 {
 
-    class SfM : public KTKR::Singleton<SfM>
+    class SfM : public KTKR::Singleton<SfM>, public MVSRuntime
     {
 
     public:
-        SfM() : _debugLevel{KTKR::DebugLogLevel::LOG_TRACE} {}
+        SfM(); 
         ~SfM() = default;
 
         void Init();
@@ -47,5 +49,11 @@ namespace KTKR::MVS
         std::vector<cv::Matx34f> mCameraPoses;
         std::set<int> mDoneViews;
         std::set<int> mGoodViews;
+
+        SfMFeature sfmFeature;
+        SfMStereo sfmStereo;
+        SfMBundleAdjustment sfmBundleAdjustment;
+
+        void SetConfig(Config cfg) override;
     };
 } // namespace KTKR::MVS

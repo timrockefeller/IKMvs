@@ -41,7 +41,7 @@ Matching SfMFeature::matchFeatures(const Features &ls, const Features &rs)
         lsP[i] = ls.points[matchedPoints[i][0].queryIdx];
         rsP[i] = rs.points[matchedPoints[i][0].trainIdx];
     }
-    cv::findFundamentalMat(lsP, rsP, RansacStatus, FM_RANSAC);
+    cv::findFundamentalMat(lsP, rsP, RansacStatus, FM_RANSAC, RANSAC_THRESHOLD);
 
     // prune matching between the ratio test
     for (size_t i = 0; i < matchedPoints.size(); i++)

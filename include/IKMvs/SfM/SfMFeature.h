@@ -1,11 +1,12 @@
 #pragma once
 #include "SfMUtil.h"
+#include "../Config.h"
 #include <Ikit/STL/Singleton.h>
 #include <opencv2/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
 namespace KTKR::MVS
 {
-    class SfMFeature : public KTKR::Singleton<SfMFeature>
+    class SfMFeature : public MVSRuntime
     {
     private:
         cv::Ptr<cv::Feature2D> mDetector;
@@ -14,7 +15,7 @@ namespace KTKR::MVS
     public:
         SfMFeature();
         ~SfMFeature();
-
+        
         Features extractFeatures(const cv::Mat &image);
         Matching matchFeatures(
             const Features &ls,

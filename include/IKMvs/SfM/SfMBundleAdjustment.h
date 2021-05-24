@@ -1,10 +1,11 @@
 #pragma once
 #include "SfMUtil.h"
+#include "../Config.h"
 #include <Ikit/STL/Singleton.h>
 
 namespace KTKR::MVS
 {
-    class SfMBundleAdjustment : public KTKR::Singleton<SfMBundleAdjustment>
+    class SfMBundleAdjustment : public MVSRuntime
     {
     public:
         void adjustBundle(

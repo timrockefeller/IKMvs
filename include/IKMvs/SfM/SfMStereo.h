@@ -1,11 +1,12 @@
 #pragma once
 #include <Ikit/STL/Singleton.h>
 #include "SfMUtil.h"
+#include "../Config.h"
 
 namespace KTKR::MVS
 {
 
-    class SfMStereo : public KTKR::Singleton<SfMStereo>
+    class SfMStereo : public MVSRuntime
     {
     public:
         int findHomographyInlier(const Features &left,
