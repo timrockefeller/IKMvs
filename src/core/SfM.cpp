@@ -196,7 +196,7 @@ void KTKR::MVS::SfM::findBaselineTriangulation()
 
         auto poseInliersRatio = static_cast<float>(prunedMatching.size()) / static_cast<float>(mFeatureMatchMatrix[i][j].size());
         ILog(this->_debugLevel, KTKR::LOG_TRACE, "pose inliers ratio ", poseInliersRatio);
-        if (poseInliersRatio < POSE_INLIERS_MINIMAL_RATIO)
+        if (poseInliersRatio < config.POSE_INLIERS_MINIMAL_RATIO)
         {
             ILog(this->_debugLevel, KTKR::LOG_TRACE, "insufficient pose inliers. skip.");
             continue;
@@ -255,7 +255,7 @@ map<float, ImagePair> KTKR::MVS::SfM::sortViewsForBaseline()
     {
         for (size_t j = i + 1; j < numImages; j++)
         {
-            if (mFeatureMatchMatrix[i][j].size() < MIN_POINT_COUNT_FOR_HOMOGRAPHY)
+            if (mFeatureMatchMatrix[i][j].size() < config.MIN_POINT_COUNT_FOR_HOMOGRAPHY)
             {
                 //Not enough points in matching
                 matchesSizes.emplace(std::piecewise_construct,
@@ -398,7 +398,7 @@ void SfM::mergeNewPointCloud(const PointCloud &cloud)
         bool foundMatching3DPoint = false;
         for (Point3DInMap &existingPoint : mReconstructionCloud)
         {
-            if (norm(existingPoint.p - newPoint) < MERGE_CLOUD_POINT_MIN_MATCH_DISTANCE)
+            if (norm(existingPoint.p - newPoint) < config.MERGE_CLOUD_POINT_MIN_MATCH_DISTANCE)
             {
                 //This point is very close to an existing 3D cloud point
                 foundMatching3DPoint = true;
@@ -427,7 +427,7 @@ void SfM::mergeNewPointCloud(const PointCloud &cloud)
                         {
                             if (match.queryIdx == leftViewFeatureIdx &&
                                 match.trainIdx == rightViewFeatureIdx &&
-                                match.distance < MERGE_CLOUD_FEATURE_MIN_MATCH_DISTANCE)
+                                match.distance < config.MERGE_CLOUD_FEATURE_MIN_MATCH_DISTANCE)
                             {
 
                                 mergeMatchMatrix[leftViewIdx][rightViewIdx].push_back(match);

@@ -41,12 +41,12 @@ Matching SfMFeature::matchFeatures(const Features &ls, const Features &rs)
         lsP[i] = ls.points[matchedPoints[i][0].queryIdx];
         rsP[i] = rs.points[matchedPoints[i][0].trainIdx];
     }
-    cv::findFundamentalMat(lsP, rsP, RansacStatus, FM_RANSAC, RANSAC_THRESHOLD);
+    cv::findFundamentalMat(lsP, rsP, RansacStatus, FM_RANSAC, config.RANSAC_THRESHOLD);
 
     // prune matching between the ratio test
     for (size_t i = 0; i < matchedPoints.size(); i++)
     {
-        if (RansacStatus[i] != 0 && matchedPoints[i][0].distance < NN_MATCH_RATIO * matchedPoints[i][1].distance)
+        if (RansacStatus[i] != 0 && matchedPoints[i][0].distance < config.NN_MATCH_RATIO * matchedPoints[i][1].distance)
         {
             goodMatchedPoints.push_back(matchedPoints[i][0]);
         }

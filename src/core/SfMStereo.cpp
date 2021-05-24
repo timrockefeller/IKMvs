@@ -16,7 +16,7 @@ int SfMStereo::findHomographyInlier(const Features &left,
     Mat homography;
     if (matches.size() >= 4)
         homography = findHomography(alignedLeft.points, alignedRight.points,
-                                    cv::RANSAC, RANSAC_THRESHOLD, inlierMask);
+                                    cv::RANSAC, config.RANSAC_THRESHOLD, inlierMask);
 
     if (matches.size() < 4 || homography.empty())
         return 0;
@@ -120,8 +120,8 @@ ErrorCode SfMStereo::triangulateViews(const Intrinsics &intrinsics,
     for (size_t i = 0; i < pts_3d.rows; i++)
     {
         //check if point reprojection error is small enough
-        if (norm(projectedOnLeft[i] - alignedL.points[i]) > MIN_REPROJECTION_ERROR ||
-            norm(projectedOnRight[i] - alignedR.points[i]) > MIN_REPROJECTION_ERROR)
+        if (norm(projectedOnLeft[i] - alignedL.points[i]) > config.MIN_REPROJECTION_ERROR ||
+            norm(projectedOnRight[i] - alignedR.points[i]) > config.MIN_REPROJECTION_ERROR)
         {
             continue;
         }
@@ -158,7 +158,7 @@ ErrorCode SfMStereo::findCameraPoseFrom2D3DMatch(const Intrinsics &intrinsics,
             tvec,
             false,
             100,
-            RANSAC_THRESHOLD,
+            config.RANSAC_THRESHOLD,
             0.99,
             inliers);
     }
@@ -167,7 +167,7 @@ ErrorCode SfMStereo::findCameraPoseFrom2D3DMatch(const Intrinsics &intrinsics,
         return ERR_DO_NOT_FIT;
     }
     //check inliers ratio and reject if too small
-    if (((float)countNonZero(inliers) / (float)match.points2D.size()) < POSE_INLIERS_MINIMAL_RATIO)
+    if (((float)countNonZero(inliers) / (float)match.points2D.size()) < config.POSE_INLIERS_MINIMAL_RATIO)
     {
         cerr << "Inliers ratio is too small: " << countNonZero(inliers) << " / " << match.points2D.size() << endl;
         return ERR_DO_NOT_FIT;
