@@ -26,7 +26,7 @@ namespace KTKR::MVS
         } MATCH_PAIR_ELECTOR = BestHomography;
 
         //
-        const double NN_MATCH_RATIO = 0.8;
+        double NN_MATCH_RATIO = 0.8;
 
         // RANSAC阈值
         double RANSAC_THRESHOLD = 10.0;
@@ -46,12 +46,12 @@ namespace KTKR::MVS
         // 位姿恢复时匹配特征使用率
         float POSE_INLIERS_MINIMAL_RATIO = 0.5f;
 
-    } globalConfig;
+    };
 
     class MVSRuntime
     {
     public:
-        Config config = globalConfig;
-        virtual void SetConfig(Config cfg) { config = cfg; };
+        Config config;
+        virtual void SetConfig(Config cfg) { config = cfg; }
     };
 } // namespace KTKR::MVS
