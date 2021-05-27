@@ -85,7 +85,27 @@ ErrorCode KTKR::MVS::SfM::LoadImage(std::vector<string> paths, cv::Size2f size)
 
     return OK;
 }
-
+ErrorCode KTKR::MVS::SfM::LoadImage(string folderPath, Size2f size)
+{
+    vector<string> imagePath;
+    vector<string> fn;
+    glob(folderPath + "/*.png", fn, false);
+    for (auto i : fn)
+        imagePath.push_back(i);
+    fn.clear();
+    glob(folderPath + "/*.PNG", fn, false);
+    for (auto i : fn)
+        imagePath.push_back(i);
+    fn.clear();
+    glob(folderPath + "/*.jpg", fn, false);
+    for (auto i : fn)
+        imagePath.push_back(i);
+    fn.clear();
+    glob(folderPath + "/*.JPG", fn, false);
+    for (auto i : fn)
+        imagePath.push_back(i);
+    return LoadImage(imagePath, size);
+}
 void KTKR::MVS::SfM::runSfM()
 {
     extractFeatures();

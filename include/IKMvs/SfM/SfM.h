@@ -25,6 +25,7 @@ namespace KTKR::MVS
         void Init();
         ErrorCode LoadIntrinsics(const std::string &intrinsicsFilePath);
         ErrorCode LoadImage(std::vector<std::string> paths, cv::Size2f = cv::Size2f(0, 0));
+        ErrorCode LoadImage(std::string folderPath, cv::Size2f = cv::Size2f(0, 0));
         void runSfM();
         void extractFeatures();
         void createFeatureMatchMatrix();
