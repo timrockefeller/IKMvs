@@ -8,8 +8,8 @@ SfMFeature::SfMFeature()
 {
 
     // TODO: make it easy to modify
-    mDetector = SIFT::create();
-    mMatcher = DescriptorMatcher::create("BruteForce-Hamming");
+    // mDetector = SIFT::create();
+    // mMatcher = DescriptorMatcher::create("BruteForce-Hamming");
 }
 
 SfMFeature::~SfMFeature()
@@ -19,6 +19,24 @@ SfMFeature::~SfMFeature()
 Features SfMFeature::extractFeatures(const Mat &image)
 {
     Features features;
+    cv::Ptr<Feature2D> mDetector;
+    switch (config.FEATURE_DETECTOR)
+    {
+    case Config::ENUM_FeatureDetector::SIFT:
+        mDetector = SIFT::create();
+        break;
+    case Config::ENUM_FeatureDetector::SURF:
+        mDetector = SURF::create();
+        break;
+    case Config::ENUM_FeatureDetector::KAZE:
+        mDetector = KAZE::create();
+        break;
+    case Config::ENUM_FeatureDetector::AKAZE:
+        mDetector = AKAZE::create();
+        break;
+    default:
+        break;
+    }
     mDetector->detectAndCompute(image, noArray(), features.keyPoints, features.descriptors);
     KeyPointsToPoints(features.keyPoints, features.points);
     return features;
@@ -29,10 +47,17 @@ Matching SfMFeature::matchFeatures(const Features &ls, const Features &rs)
     vector<Matching> matchedPoints;
     Matching goodMatchedPoints;
 
-    // TODO: make it easy to modify
-    auto matcher = DescriptorMatcher::create("FlannBased");
+    Ptr<DescriptorMatcher> matcher;
+    if (config.FEATURE_DETECTOR == Config::ENUM_FeatureDetector::ORB)
+    {
+        matcher = DescriptorMatcher::create("BruteForce-Hamming");
+    }
+    else
+    {
+        matcher = DescriptorMatcher::create("FlannBased");
+    }
     matcher->knnMatch(ls.descriptors, rs.descriptors, matchedPoints, 2);
-
+    cout<<"u";
     //ransac filter
     vector<uchar> RansacStatus(ls.points.size());
     vector<Point2f> lsP{matchedPoints.size()}, rsP{matchedPoints.size()};

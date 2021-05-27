@@ -8,9 +8,6 @@ namespace KTKR::MVS
 {
     class SfMFeature : public MVSRuntime
     {
-    private:
-        cv::Ptr<cv::Feature2D> mDetector;
-        cv::Ptr<cv::DescriptorMatcher> mMatcher;
 
     public:
         SfMFeature();
