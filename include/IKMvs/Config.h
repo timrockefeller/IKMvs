@@ -10,8 +10,10 @@ namespace KTKR::MVS
         {
             SIFT,
             SURF,
-            ORB
-        } FEATURE_DETECTOR = SIFT;
+            ORB,
+            KAZE,
+            AKAZE,
+        } FEATURE_DETECTOR = AKAZE;
 
         enum ENUM_FeatureMatcher // 特征匹配算子
         {
