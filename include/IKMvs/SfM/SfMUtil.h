@@ -14,7 +14,7 @@ namespace KTKR::MVS
         Points2f points;
         cv::Mat descriptors;
     };
-
+    
     // matching points
     using Matching = std::vector<cv::DMatch>;
     // view i to view j

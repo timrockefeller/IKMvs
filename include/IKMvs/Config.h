@@ -13,19 +13,22 @@ namespace KTKR::MVS
             ORB,
             KAZE,
             AKAZE,
-        } FEATURE_DETECTOR = AKAZE;
+        };
+        int FEATURE_DETECTOR = SIFT;
 
         enum ENUM_FeatureMatcher // 特征匹配算子
         {
             FLANN,
             BRUTE
-        } FEATURE_MATCHER = FLANN;
+        };
+        int FEATURE_MATCHER = FLANN;
 
         enum ENUM_MatchPairElector // 选择匹配对方案
         {
             BestHomography,
             Sequencial
-        } MATCH_PAIR_ELECTOR = BestHomography;
+        };
+        int MATCH_PAIR_ELECTOR = BestHomography;
 
         //
         double NN_MATCH_RATIO = 0.8;
@@ -47,7 +50,6 @@ namespace KTKR::MVS
 
         // 位姿恢复时匹配特征使用率
         float POSE_INLIERS_MINIMAL_RATIO = 0.5f;
-
     };
 
     class MVSRuntime

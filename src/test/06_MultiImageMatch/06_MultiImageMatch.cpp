@@ -20,14 +20,14 @@ int main()
 {
     SfM::Get()->Init();
     SfM::Get()->LoadIntrinsics("../asset/calibration/caliberation_result.txt");
-    SfM::Get()->LoadImage("../asset/data_qinghuamen/imagedata", {1200, 800});
+    SfM::Get()->LoadImage("../asset/sanaetable2", {1200, 800});
 
     SfM::Get()->extractFeatures();
     SfM::Get()->createFeatureMatchMatrix();
     SfM::Get()->findBaselineTriangulation();
     SfM::Get()->addMoreViewsToReconstruction();
 
-    SfM::Get()->savePointCloudToPLY("../asset/06_result_qinghua");
+    SfM::Get()->savePointCloudToPLY("../asset/06_result_sanaetable2");
     // TODO ...
 
 #if _DEBUG

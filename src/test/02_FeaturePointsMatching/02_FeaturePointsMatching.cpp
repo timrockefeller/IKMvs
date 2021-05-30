@@ -134,7 +134,7 @@ int main()
     }
 
     vector<uchar> RansacStatus;
-    Mat Fundamental = cv::findFundamentalMat(p1, p2, RansacStatus, cv::FM_RANSAC);
+    Mat Fundamental = cv::findFundamentalMat(p1, p2, RansacStatus, cv::FM_RANSAC,8);
 
     // create new arrays (code cleaning required)
     vector<KeyPoint> RAW_keyPoint1, RAW_keyPoint2;

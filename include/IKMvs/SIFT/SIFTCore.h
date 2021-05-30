@@ -8,7 +8,7 @@ namespace KTKR::MVS
     class SIFTCore : KTKR::Singleton<SIFTCore>
     {
     public:
-        static const size_t GAUSSKERN = Config::SIFT_GAUSSKERN;
+        static const size_t GAUSSKERN = 2;
 
         // cv::Ptr<cv::SiftFeatureDetector> siftDetector;
 

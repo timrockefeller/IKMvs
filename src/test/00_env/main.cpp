@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
     std::cout << "Well you made it! \n";
     Mat image;
-    image = cv::imread("../asset/banana_1.JPG", 1);
+    image = cv::imread("../asset/banana_2.JPG", 1);
     cv::resize(image, image, cv::Size(1200, 800));
     if (!image.data)
     {
